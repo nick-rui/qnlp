@@ -1,0 +1,43 @@
+[project]
+name = "qnlp-tutorial"
+version = "0.1.0"
+description = "Educational QNLP toy sentiment classifier and tutorial notebook."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "matplotlib>=3.7",
+    "jupyter>=1.0",
+    "ipykernel>=6.0",
+]
+
+[project.optional-dependencies]
+quantum = [
+    "qiskit>=1.0",
+    "qiskit-aer>=0.14",
+]
+qnlp = [
+    "lambeq>=0.4",
+]
+ml = [
+    "torch>=2.0",
+]
+dev = [
+    "nbformat>=5.9",
+    "nbconvert>=7.0",
+    "pytest>=8.0",
+    "ruff>=0.5",
+]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+src = ["src"]
+
