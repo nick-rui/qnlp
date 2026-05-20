@@ -1,0 +1,73 @@
+sentence,label,split,pattern
+the clever program runs,1,train,ADJ_NOUN_VERB
+the reliable model improves,1,train,ADJ_NOUN_VERB
+the careful compiler catches the error,1,train,ADJ_NOUN_VERB_OBJ
+the stable server answers,1,train,ADJ_NOUN_VERB
+the bright student solves the puzzle,1,train,ADJ_NOUN_VERB_OBJ
+the helpful agent fixes the bug,1,train,ADJ_NOUN_VERB_OBJ
+the optimized circuit converges,1,train,ADJ_NOUN_VERB
+the accurate parser recognizes the sentence,1,train,ADJ_NOUN_VERB_OBJ
+the robust script passes,1,train,ADJ_NOUN_VERB
+the clean code compiles,1,train,ADJ_NOUN_VERB
+the efficient program succeeds,1,train,ADJ_NOUN_VERB
+the precise model predicts the label,1,train,ADJ_NOUN_VERB_OBJ
+the trusted server recovers,1,train,ADJ_NOUN_VERB
+the elegant proof works,1,train,ADJ_NOUN_VERB
+the useful notebook teaches the concept,1,train,ADJ_NOUN_VERB_OBJ
+the simple circuit learns,1,train,ADJ_NOUN_VERB
+the fast optimizer lowers the loss,1,train,ADJ_NOUN_VERB_OBJ
+the valid grammar guides the circuit,1,train,ADJ_NOUN_VERB_OBJ
+the strong signal supports the answer,1,train,ADJ_NOUN_VERB_OBJ
+the clear tutorial explains the method,1,train,ADJ_NOUN_VERB_OBJ
+the compact dataset trains,1,train,ADJ_NOUN_VERB
+the friendly chatbot helps the user,1,train,ADJ_NOUN_VERB_OBJ
+the correct theorem proves the claim,1,train,ADJ_NOUN_VERB_OBJ
+the smooth experiment finishes,1,train,ADJ_NOUN_VERB
+the sharp classifier separates the classes,1,train,ADJ_NOUN_VERB_OBJ
+the consistent gradient updates the weights,1,train,ADJ_NOUN_VERB_OBJ
+the readable diagram shows the grammar,1,train,ADJ_NOUN_VERB_OBJ
+the patient simulator runs,1,train,ADJ_NOUN_VERB
+the useful feature improves the result,1,train,ADJ_NOUN_VERB_OBJ
+the quantum example succeeds,1,train,ADJ_NOUN_VERB
+the broken code fails,0,train,ADJ_NOUN_VERB
+the noisy model collapses,0,train,ADJ_NOUN_VERB
+the careless compiler misses the error,0,train,ADJ_NOUN_VERB_OBJ
+the fragile server crashes,0,train,ADJ_NOUN_VERB
+the confused student loses the puzzle,0,train,ADJ_NOUN_VERB_OBJ
+the harmful agent creates the bug,0,train,ADJ_NOUN_VERB_OBJ
+the unstable circuit diverges,0,train,ADJ_NOUN_VERB
+the inaccurate parser rejects the sentence,0,train,ADJ_NOUN_VERB_OBJ
+the brittle script fails,0,train,ADJ_NOUN_VERB
+the messy code breaks,0,train,ADJ_NOUN_VERB
+the slow program stalls,0,train,ADJ_NOUN_VERB
+the vague model guesses the label,0,train,ADJ_NOUN_VERB_OBJ
+the overloaded server drops,0,train,ADJ_NOUN_VERB
+the flawed proof fails,0,train,ADJ_NOUN_VERB
+the empty notebook hides the concept,0,train,ADJ_NOUN_VERB_OBJ
+the tangled circuit forgets,0,train,ADJ_NOUN_VERB
+the weak optimizer raises the loss,0,train,ADJ_NOUN_VERB_OBJ
+the invalid grammar blocks the circuit,0,train,ADJ_NOUN_VERB_OBJ
+the faint signal obscures the answer,0,train,ADJ_NOUN_VERB_OBJ
+the unclear tutorial confuses the method,0,train,ADJ_NOUN_VERB_OBJ
+the tiny dataset overfits,0,train,ADJ_NOUN_VERB
+the rude chatbot frustrates the user,0,train,ADJ_NOUN_VERB_OBJ
+the false theorem disproves the claim,0,train,ADJ_NOUN_VERB_OBJ
+the stalled experiment hangs,0,train,ADJ_NOUN_VERB
+the dull classifier mixes the classes,0,train,ADJ_NOUN_VERB_OBJ
+the erratic gradient corrupts the weights,0,train,ADJ_NOUN_VERB_OBJ
+the unreadable diagram hides the grammar,0,train,ADJ_NOUN_VERB_OBJ
+the impatient simulator stops,0,train,ADJ_NOUN_VERB
+the useless feature worsens the result,0,train,ADJ_NOUN_VERB_OBJ
+the classical example fails,0,train,ADJ_NOUN_VERB
+the clever program succeeds,1,test,ADJ_NOUN_VERB
+the reliable model predicts the label,1,test,ADJ_NOUN_VERB_OBJ
+the helpful chatbot helps the user,1,test,ADJ_NOUN_VERB_OBJ
+the robust compiler catches the error,1,test,ADJ_NOUN_VERB_OBJ
+the fast circuit converges,1,test,ADJ_NOUN_VERB
+the careful tutorial explains the method,1,test,ADJ_NOUN_VERB_OBJ
+the broken program fails,0,test,ADJ_NOUN_VERB
+the noisy model guesses the label,0,test,ADJ_NOUN_VERB_OBJ
+the harmful agent creates the bug,0,test,ADJ_NOUN_VERB_OBJ
+the fragile server crashes,0,test,ADJ_NOUN_VERB
+the invalid grammar blocks the circuit,0,test,ADJ_NOUN_VERB_OBJ
+the weak optimizer raises the loss,0,test,ADJ_NOUN_VERB_OBJ
