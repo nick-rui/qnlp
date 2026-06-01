@@ -1,9 +1,14 @@
-"""Toy DisCoCat-inspired circuit and classifier utilities."""
+"""Toy DisCoCat-inspired circuit and classifier utilities.
+
+The classifier no longer reads sentiment off a classical sigmoid. Every
+prediction is produced by *simulating* the two-qubit grammar circuit on a
+statevector and measuring the sentence qubit, and parameters are trained with
+the parameter-shift rule -- the same gradient technique real QNLP circuits use.
+"""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import exp
 
 import numpy as np
 import pandas as pd
@@ -18,6 +23,51 @@ ROLE_WEIGHTS = {
     "object_modifier": 0.9,
     "object": 0.35,
 }
+
+# Operating point for the final decision rotation. Starting near pi/2 places the
+# sentence qubit at the steepest part of the measurement curve, so word
+# sentiments can push the measured probability up (positive) or down (negative).
+READOUT_OFFSET = float(np.pi / 2)
+
+_I2 = np.eye(2)
+# Basis states are ordered |subject sentence> with index = 2*subject + sentence.
+# CX with the subject qubit as control flips the sentence qubit only when the
+# subject reads 1, i.e. it swaps basis states 10 (index 2) and 11 (index 3).
+_CX_SUBJECT_SENTENCE = np.array(
+    [
+        [1.0, 0.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0, 0.0],
+        [0.0, 0.0, 0.0, 1.0],
+        [0.0, 0.0, 1.0, 0.0],
+    ]
+)
+
+
+def _ry_matrix(theta: float) -> np.ndarray:
+    """Single-qubit Ry(theta) rotation matrix."""
+    half = theta / 2.0
+    cos, sin = np.cos(half), np.sin(half)
+    return np.array([[cos, -sin], [sin, cos]])
+
+
+def simulate_sentence_probability(
+    subject_angle: float, predicate_angle: float, decision_angle: float
+) -> float:
+    """Statevector-simulate the grammar circuit and return P(sentence qubit = 1).
+
+    Gate order: Ry on the subject qubit, Ry on the sentence qubit, a CX that
+    entangles subject -> sentence (the grammatical link), then the decision Ry
+    on the sentence qubit. The returned value is the measured probability that
+    the sentence qubit reads 1, interpreted as P(positive sentiment).
+    """
+    state = np.zeros(4)
+    state[0] = 1.0  # both qubits start in |0>, i.e. basis state |00>
+    state = np.kron(_ry_matrix(subject_angle), _I2) @ state
+    state = np.kron(_I2, _ry_matrix(predicate_angle)) @ state
+    state = _CX_SUBJECT_SENTENCE @ state
+    state = np.kron(_I2, _ry_matrix(decision_angle)) @ state
+    # The sentence qubit is the low bit; it reads 1 in basis states 01 and 11.
+    return float(state[1] ** 2 + state[3] ** 2)
 
 
 @dataclass(frozen=True)
@@ -100,17 +150,16 @@ class ToyQNLPClassifier:
         return float(score)
 
     def predict_proba(self, diagram_or_sentence: GrammarDiagram | str) -> float:
-        """Return P(label=1), interpreted as the measured sentence qubit probability."""
-        diagram = (
-            parse_sentence(diagram_or_sentence)
-            if isinstance(diagram_or_sentence, str)
-            else diagram_or_sentence
+        """Return P(label=1) by simulating and measuring the sentence circuit.
+
+        This is the genuine quantum readout: the angles built in `circuit_for`
+        are fed through the statevector simulation and the sentence qubit is
+        measured. The drawn circuit and the prediction now share one path.
+        """
+        circuit = self.circuit_for(diagram_or_sentence)
+        return simulate_sentence_probability(
+            circuit.subject_angle, circuit.predicate_angle, circuit.decision_angle
         )
-        logit = self.score(diagram)
-        if logit >= 0:
-            return 1.0 / (1.0 + exp(-logit))
-        exp_logit = exp(logit)
-        return exp_logit / (1.0 + exp_logit)
 
     def predict(self, diagram_or_sentence: GrammarDiagram | str) -> int:
         return int(self.predict_proba(diagram_or_sentence) >= 0.5)
@@ -136,7 +185,7 @@ class ToyQNLPClassifier:
             diagram=diagram,
             subject_angle=subject_angle,
             predicate_angle=predicate_angle,
-            decision_angle=self.score(diagram),
+            decision_angle=READOUT_OFFSET + self.score(diagram),
         )
 
     def loss(self, rows: pd.DataFrame) -> float:
@@ -161,21 +210,67 @@ class ToyQNLPClassifier:
         epochs: int = 50,
         learning_rate: float = 0.35,
     ) -> list[dict[str, float]]:
-        """Train parameters with exact BCE gradients for the sentence-angle model."""
+        """Train word angles by differentiating the simulated circuit.
+
+        Gradients flow through the parameter-shift rule: each gate angle's
+        derivative is (P(angle + pi/2) - P(angle - pi/2)) / 2 -- exact for an
+        Ry rotation, and the standard way real QNLP circuits are trained. The
+        chain rule then maps those per-angle gradients onto the word
+        parameters, since each angle is a (role-weighted) sum of word dials.
+        """
+        shift = float(np.pi / 2)
+        eps = 1e-7
+        diagrams = [parse_sentence(row.sentence) for row in rows.itertuples(index=False)]
+        labels = [float(row.label) for row in rows.itertuples(index=False)]
+
         history: list[dict[str, float]] = []
         for epoch in range(1, epochs + 1):
             gradient = {word: 0.0 for word in self.vocabulary}
             bias_gradient = 0.0
 
-            for row in rows.itertuples(index=False):
-                diagram = parse_sentence(row.sentence)
-                probability = self.predict_proba(diagram)
-                error = probability - float(row.label)
-                bias_gradient += error
-                for word, weight in self.features(diagram).items():
-                    gradient[word] += error * weight
+            for diagram, label in zip(diagrams, labels):
+                circuit = self.circuit_for(diagram)
+                sa, pa, da = circuit.subject_angle, circuit.predicate_angle, circuit.decision_angle
 
-            scale = 1.0 / len(rows)
+                probability = min(max(simulate_sentence_probability(sa, pa, da), eps), 1 - eps)
+
+                # Parameter-shift derivatives of P w.r.t. each gate angle.
+                d_subject = 0.5 * (
+                    simulate_sentence_probability(sa + shift, pa, da)
+                    - simulate_sentence_probability(sa - shift, pa, da)
+                )
+                d_predicate = 0.5 * (
+                    simulate_sentence_probability(sa, pa + shift, da)
+                    - simulate_sentence_probability(sa, pa - shift, da)
+                )
+                d_decision = 0.5 * (
+                    simulate_sentence_probability(sa, pa, da + shift)
+                    - simulate_sentence_probability(sa, pa, da - shift)
+                )
+
+                # d(BCE)/dP for this example.
+                d_loss_d_prob = (probability - label) / (probability * (1 - probability))
+
+                # Chain rule: which words feed which gate angle.
+                subject_words = [w for w in (diagram.adjective, diagram.subject) if w]
+                predicate_words = [
+                    w for w in (diagram.verb, diagram.object_adjective, diagram.object_) if w
+                ]
+                decision_weights = self.features(diagram)  # word -> role weight
+
+                touched = set(subject_words) | set(predicate_words) | set(decision_weights)
+                for word in touched:
+                    d_angle = (
+                        d_subject * subject_words.count(word)
+                        + d_predicate * predicate_words.count(word)
+                        + d_decision * decision_weights.get(word, 0.0)
+                    )
+                    gradient[word] += d_loss_d_prob * d_angle
+
+                # The bias enters only the decision angle, with coefficient 1.
+                bias_gradient += d_loss_d_prob * d_decision
+
+            scale = 1.0 / len(diagrams)
             self.bias -= learning_rate * bias_gradient * scale
             for word in self.vocabulary:
                 self.parameters[word] -= learning_rate * gradient[word] * scale
