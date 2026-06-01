@@ -24,15 +24,12 @@ ROLE_WEIGHTS = {
     "object": 0.35,
 }
 
-# Operating point for the final decision rotation. Starting near pi/2 places the
-# sentence qubit at the steepest part of the measurement curve, so word
-# sentiments can push the measured probability up (positive) or down (negative).
+# pi/2 initializes the sentence qubit at the equator, equidistant from both poles.
 READOUT_OFFSET = float(np.pi / 2)
 
 _I2 = np.eye(2)
-# Basis states are ordered |subject sentence> with index = 2*subject + sentence.
-# CX with the subject qubit as control flips the sentence qubit only when the
-# subject reads 1, i.e. it swaps basis states 10 (index 2) and 11 (index 3).
+# Basis ordering: |subject, sentence>, index = 2*subject + sentence.
+# CX swaps |10> (index 2) and |11> (index 3).
 _CX_SUBJECT_SENTENCE = np.array(
     [
         [1.0, 0.0, 0.0, 0.0],
@@ -53,20 +50,14 @@ def _ry_matrix(theta: float) -> np.ndarray:
 def simulate_sentence_probability(
     subject_angle: float, predicate_angle: float, decision_angle: float
 ) -> float:
-    """Statevector-simulate the grammar circuit and return P(sentence qubit = 1).
-
-    Gate order: Ry on the subject qubit, Ry on the sentence qubit, a CX that
-    entangles subject -> sentence (the grammatical link), then the decision Ry
-    on the sentence qubit. The returned value is the measured probability that
-    the sentence qubit reads 1, interpreted as P(positive sentiment).
-    """
+    """Statevector simulation of the 2-qubit grammar circuit; returns P(sentence qubit = 1)."""
     state = np.zeros(4)
-    state[0] = 1.0  # both qubits start in |0>, i.e. basis state |00>
+    state[0] = 1.0  # |00>
     state = np.kron(_ry_matrix(subject_angle), _I2) @ state
     state = np.kron(_I2, _ry_matrix(predicate_angle)) @ state
     state = _CX_SUBJECT_SENTENCE @ state
     state = np.kron(_I2, _ry_matrix(decision_angle)) @ state
-    # The sentence qubit is the low bit; it reads 1 in basis states 01 and 11.
+    # sentence qubit is the low bit: reads 1 in |01> and |11>
     return float(state[1] ** 2 + state[3] ** 2)
 
 
@@ -234,7 +225,7 @@ class ToyQNLPClassifier:
 
                 probability = min(max(simulate_sentence_probability(sa, pa, da), eps), 1 - eps)
 
-                # Parameter-shift derivatives of P w.r.t. each gate angle.
+                # parameter-shift gradients
                 d_subject = 0.5 * (
                     simulate_sentence_probability(sa + shift, pa, da)
                     - simulate_sentence_probability(sa - shift, pa, da)
@@ -248,10 +239,9 @@ class ToyQNLPClassifier:
                     - simulate_sentence_probability(sa, pa, da - shift)
                 )
 
-                # d(BCE)/dP for this example.
                 d_loss_d_prob = (probability - label) / (probability * (1 - probability))
 
-                # Chain rule: which words feed which gate angle.
+                # chain rule: which words feed which gate
                 subject_words = [w for w in (diagram.adjective, diagram.subject) if w]
                 predicate_words = [
                     w for w in (diagram.verb, diagram.object_adjective, diagram.object_) if w
@@ -267,7 +257,7 @@ class ToyQNLPClassifier:
                     )
                     gradient[word] += d_loss_d_prob * d_angle
 
-                # The bias enters only the decision angle, with coefficient 1.
+                # bias feeds only the decision angle
                 bias_gradient += d_loss_d_prob * d_decision
 
             scale = 1.0 / len(diagrams)

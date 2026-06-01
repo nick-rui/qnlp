@@ -44,10 +44,11 @@
 \newcommand{\separatorcolumn}{\begin{column}{\sepwidth}\end{column}}
 
 \title{Can a Quantum Circuit Read a Sentence?}
-\author{Feolu Kolawole \enspace$\cdot$\enspace Nick Rui}
+\author{Feolu Kolawole \enspace$\cdot$\enspace Nick Rui \\[0.2ex]
+  {\normalsize\{flukol, nickrui\}@stanford.edu}}
 \institute[shortinst]{Physics 14N \enspace$\cdot$\enspace Stanford University}
 \footercontent{\hfill From Syntax to Circuits: a toy QNLP sentiment classifier \hfill
-  \href{mailto:flukol@stanford.edu}{flukol@stanford.edu}}
+  \{flukol, nickrui\}@stanford.edu}
 
 \begin{document}
 
@@ -69,12 +70,12 @@
 \begin{column}{\colwidth}
 
   \begin{block}{Motivation}
-    We implement a \textbf{Quantum Natural Language Processing (QNLP)} pipeline that
+    We built a \textbf{Quantum Natural Language Processing (QNLP)} pipeline that
     classifies sentence sentiment as \textbf{\color{poscol}positive} or
-    \textbf{\color{negcol}negative} by executing a parameterized quantum circuit.
-    Grammar structure determines the circuit topology; learned rotation angles encode
-    word-level semantics. Classification follows from a single measurement in the
-    computational basis. We train and evaluate on sentence pairs such as
+    \textbf{\color{negcol}negative} using a parameterized quantum circuit.
+    Grammar determines the circuit structure; each word contributes a learned rotation
+    angle. The final measurement collapses the state to a class label.
+    We train and evaluate on sentence pairs such as
     \wordbox{poscol}{the clever program runs} vs.\
     \wordbox{negcol}{the broken code fails}.
     \smallskip
@@ -110,9 +111,8 @@
       {\color{objcol!60!black}\textbf{object}}
     \end{center}
 
-    Grammar determines the circuit topology and assigns role-specific
-    weights to each word's rotation parameter. Verbs and adjectives receive
-    higher weights, reflecting their greater contribution to sentential polarity:
+    Grammar wires words together and weights each role's contribution.
+    Verbs and adjectives carry more weight, since they drive sentiment:
 
     \begin{center}
       \begin{tabular}{lc}
@@ -127,15 +127,15 @@
         \bottomrule
       \end{tabular}
     \end{center}
-    \footnotesize (Object-role weights activate for sentences with an explicit object;
-    our example, ``the clever program runs,'' uses only the top three.)
+    \footnotesize (Object-role weights only apply when the sentence has an explicit object;
+    ``the clever program runs'' uses only the top three.)
   \end{block}
 
   \begin{block}{Step 2 --- Qubit states and measurement}
     A classical bit takes a definite value in $\{0,1\}$. A \textbf{qubit} is a
     two-level quantum system whose pure state is a unit vector on the
-    \textbf{Bloch sphere}. Before measurement, the qubit occupies a
-    \textbf{superposition} of computational basis states $|0\rangle$ and $|1\rangle$.
+    \textbf{Bloch sphere}. Before measurement, the qubit exists in a
+    \textbf{superposition} of $|0\rangle$ and $|1\rangle$.
 
     \begin{itemize}
       \item An $R_y(\theta)$ rotation from $|0\rangle$ yields
@@ -164,8 +164,8 @@
 \begin{column}{\colwidth}
 
   \begin{block}{Step 3 --- Encoding words as rotation angles}
-    Each word is encoded as an $R_y(\theta)$ rotation angle applied to its qubit wire.
-    Grammar composes the relevant angles onto each wire.
+    Each word maps to an $R_y(\theta)$ rotation on its qubit wire.
+    Grammar dictates which angles go on which wire.
     For \wordbox{poscol}{the clever program runs}, the \emph{trained} parameters are
     \;{\color{adjcol!60!black}\textbf{clever}}$=0.098$,\;
     {\color{nouncol!60!black}\textbf{program}}$=0.043$,\;
@@ -182,13 +182,13 @@
     \end{tabular}
     \end{center}
     \smallskip
-    The sentence qubit is initialized to the equatorial state ($\theta=\pi/2$),
-    so the weighted score shifts its state vector toward either pole --- the verb
+    The sentence qubit starts at the equatorial state ($\theta=\pi/2$),
+    so the weighted score tips it toward either pole --- the verb
     dominates (weight 1.40).
 
     \medskip
     \begin{center}
-    \begin{tikzpicture}[font=\sffamily,
+    \begin{tikzpicture}[scale=0.95, transform shape, font=\sffamily,
         gate/.style={draw, rounded corners=2pt, line width=1pt, minimum width=2.0cm, minimum height=1.05cm, align=center, font=\small},
         wire/.style={line width=1.3pt}]
       \draw[wire, nouncol] (3,1.4) -- (16.2,1.4);
@@ -239,10 +239,10 @@
       \end{tabular}
     \end{center}
 
-    Because each qubit is in a \textbf{superposition}, the CNOT produces an
-    \textbf{entangled} state: the post-gate state cannot be written as a
+    Because each qubit is in superposition, the CNOT produces an
+    \textbf{entangled} state: the result can no longer be written as a
     tensor product $|\psi_{\mathrm{subj}}\rangle\otimes|\psi_{\mathrm{sent}}\rangle$
-    of individual qubit states.
+    of the two qubits separately.
   \end{alertblock}
 
 \end{column}
@@ -272,15 +272,11 @@
         \bottomrule
       \end{tabular}
     \end{center}
-    The $R_y(\theta)$ rotation traces a path along the Bloch sphere: $\theta=0$ leaves
-    the qubit at $|0\rangle$ (north pole), $\theta=\pi$ rotates it to $|1\rangle$
-    (south pole), and $\theta=\pi/2$ yields the equatorial superposition
-    $\tfrac{1}{\sqrt{2}}(|0\rangle+|1\rangle)$. The sentence qubit's word angle
-    ($\theta=0.489$) places its state vector near the north pole; the verdict angle
-    ($\theta=2.465$) rotates it past the equator into the $|1\rangle$ hemisphere:
+    The sentence qubit's word angle ($\theta=0.489$) leaves it near the $|0\rangle$ pole;
+    the verdict ($\theta=2.465$) pushes it past the equator into the $|1\rangle$ hemisphere:
 
     \begin{center}
-    \begin{tikzpicture}[font=\sffamily]
+    \begin{tikzpicture}[scale=0.72, transform shape, font=\sffamily]
       \def\R{2.35}
       % colored arc: |0> half (left), |1> half (right)
       \draw[line width=12pt, negcol!55] (180:\R) arc (180:90:\R);
@@ -300,11 +296,10 @@
     \end{tikzpicture}
     \end{center}
 
-    \textbf{Measuring the sentence qubit} in the $\{|0\rangle,|1\rangle\}$ basis:
-    basis states $|01\rangle$ and $|11\rangle$ (right digit $=1$,
-    {\color{poscol}\textbf{green}} columns) correspond to a positive outcome.
-    The probability of each is the squared magnitude of its amplitude:
-    \begin{center}\Large
+    \textbf{Measuring the sentence qubit}: outcomes $|01\rangle$ and $|11\rangle$
+    (right digit $=1$, {\color{poscol}\textbf{green}} columns) are positive.
+    The probability of each outcome is the squared amplitude:
+    \begin{center}\large
       $P(|1\rangle) = 0.993^2 + 0.039^2 = \mathbf{0.988}
        \;\Rightarrow\; \textbf{\color{poscol}POSITIVE}\ \checkmark$
     \end{center}
@@ -325,10 +320,9 @@
             \bottomrule
           \end{tabular}
         \end{table}
-        \footnotesize All predictions are obtained by exact statevector simulation.
-        With only \textbf{2 qubits}, simulation is exact and completes in $<\!1$\,s;
-        full-scale QNLP would require many entangled qubits, motivating
-        execution on actual quantum hardware.
+        \footnotesize All predictions come from exact statevector simulation.
+        At \textbf{2 qubits} this runs in $<\!1$\,s; scaling to real language
+        would require many entangled qubits and actual quantum hardware.
       \end{column}
       \begin{column}{0.5\colwidth}
         \centering\includegraphics[width=0.86\linewidth]{assets/loss_curve.png}
@@ -337,22 +331,35 @@
   \end{block}
 
   \begin{alertblock}{Training: the parameter-shift rule}
-    Evaluate the circuit to obtain $P(|1\rangle)$; the error is
-    $e = P(|1\rangle) - y_{\mathrm{label}}$.
-    The gradient of $P(|1\rangle)$ with respect to each rotation angle $\theta$
-    is estimated via the \emph{parameter-shift rule}: re-running the circuit
-    with the angle shifted by $\pm\tfrac{\pi}{2}$ gives the exact gradient,
+    Error: $e = P(|1\rangle) - y_{\mathrm{label}}$. Gradients are computed exactly
+    by re-running the circuit at $\theta\pm\tfrac{\pi}{2}$:
+    \vspace{-0.5em}
     \begin{align*}
       \frac{\partial P}{\partial\theta} &=
         \tfrac{1}{2}\!\left[\,P\!\left(\theta{+}\tfrac{\pi}{2}\right)
-        - P\!\left(\theta{-}\tfrac{\pi}{2}\right)\,\right]\\[2pt]
-      \theta &\leftarrow \theta
-        - \eta\!\left(e\cdot\frac{\partial P}{\partial\theta}\right)
+        - P\!\left(\theta{-}\tfrac{\pi}{2}\right)\,\right], \qquad
+      \theta \leftarrow \theta - \eta\!\left(e\cdot\frac{\partial P}{\partial\theta}\right)
     \end{align*}
-    This identity holds exactly for gates of the form $e^{-i\theta G/2}$,
-    making it directly executable on quantum hardware. $\eta$ is the learning
-    rate; training proceeds for $\sim\!50$ epochs.
+    \vspace{-1em}
+
+    This identity holds exactly for gates $e^{-i\theta G/2}$, making it executable
+    on real quantum hardware. Training proceeds for $\sim\!50$ epochs.
   \end{alertblock}
+
+  \begin{block}{References}
+    \footnotesize
+    \begin{enumerate}
+      \item B.~Coecke, M.~Sadrzadeh, S.~Clark.
+            ``Mathematical Foundations for a Compositional Distributional Model of Meaning.''
+            \textit{Linguistic Analysis} 36, 345--384 (2010). arXiv:1003.4394
+      \item B.~Coecke, G.~de~Felice, K.~Meichanetzidis, A.~Toumi.
+            ``Foundations for Near-Term Quantum Natural Language Processing.''
+            arXiv:2012.03755 (2020).
+      \item K.~Mitarai, M.~Negoro, M.~Kitagawa, K.~Fujii.
+            ``Quantum Circuit Learning.''
+            \textit{Phys.\ Rev.\ A} 98, 032309 (2018). arXiv:1803.00745
+    \end{enumerate}
+  \end{block}
 
 \end{column}
 

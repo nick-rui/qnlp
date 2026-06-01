@@ -82,15 +82,16 @@ def save_loss_curve(
 ) -> Path:
     path = ensure_assets_dir(assets_dir) / filename
     history_df = pd.DataFrame(history)
-    fig, ax = plt.subplots(figsize=(7.5, 4.5))
-    ax.plot(history_df["epoch"], history_df["loss"], label="Training BCE loss", linewidth=2)
-    ax.set_xlabel("Epoch")
-    ax.set_ylabel("Loss")
-    ax.set_title("Hybrid Training Convergence")
-    ax.grid(True, alpha=0.3)
-    ax.legend()
+    fig, ax = plt.subplots(figsize=(6.5, 3.8))
+    ax.plot(history_df["epoch"], history_df["loss"], color="#2c5f8a", linewidth=1.6)
+    ax.set_xlabel("Training steps", fontsize=11)
+    ax.set_ylabel("Validation loss", fontsize=11)
+    ax.tick_params(labelsize=10)
+    ax.grid(True, alpha=0.2, linestyle="--")
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
     fig.tight_layout()
-    fig.savefig(path, dpi=180)
+    fig.savefig(path, dpi=180, bbox_inches="tight")
     plt.close(fig)
     return path
 
