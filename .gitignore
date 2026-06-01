@@ -28,6 +28,17 @@ dist/
 .env.*
 !.env.example
 
+# LaTeX build artifacts
+*.aux
+*.log
+*.nav
+*.out
+*.snm
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+
 # OS and editor metadata
 .DS_Store
 .vscode/

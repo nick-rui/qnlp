@@ -45,7 +45,7 @@
 
 \title{Can a Quantum Circuit Read a Sentence?}
 \author{Feolu Kolawole \enspace$\cdot$\enspace Nick Rui \\[0.3ex]
-  {\normalsize Turning ``the clever program runs'' into a trained 2-qubit circuit --- worked end to end}}
+  {\normalsize Encoding \textit{``the clever program runs''} as a trained 2-qubit parameterized quantum circuit}}
 \institute[shortinst]{Physics 14N \enspace$\cdot$\enspace Stanford University}
 \footercontent{\hfill From Syntax to Circuits: a toy QNLP sentiment classifier \hfill
   \href{mailto:flukol@stanford.edu}{flukol@stanford.edu}}
@@ -69,30 +69,37 @@
 % =====================================================================
 \begin{column}{\colwidth}
 
-  \begin{block}{The goal}
-    Read a short sentence and decide \textbf{\color{poscol}positive} or
-    \textbf{\color{negcol}negative} (its \textbf{sentiment}) --- but do it the way
-    \textbf{Quantum NLP} does: turn the words into a \textbf{quantum circuit} and let a
-    measurement give the answer.
+  \begin{block}{Motivation}
+    We implement a \textbf{Quantum Natural Language Processing (QNLP)} pipeline that
+    classifies sentence sentiment as \textbf{\color{poscol}positive} or
+    \textbf{\color{negcol}negative} by executing a parameterized quantum circuit.
+    Grammar structure determines the circuit topology; learned rotation angles encode
+    word-level semantics. Classification follows from a single measurement in the
+    computational basis. We train and evaluate on sentence pairs such as
+    \wordbox{poscol}{the clever program runs} vs.\
+    \wordbox{negcol}{the broken code fails}.
     \smallskip
     \begin{center}\normalsize
-      \textbf{\color{poscol}positive$=$good$=$YES$=1$} \quad$\mid$\quad
-      \textbf{\color{negcol}negative$=$bad$=$NO$=0$}
+      \textbf{\color{poscol}positive} $\equiv |1\rangle$ \quad$\mid$\quad
+      \textbf{\color{negcol}negative} $\equiv |0\rangle$
     \end{center}
   \end{block}
 
-  \begin{alertblock}{The whole pipeline in one line}
+  \begin{alertblock}{End-to-End Architecture}
     \begin{center}\large
-      \textbf{words $\to$ dials} \;$\cdot$\; \textbf{grammar $\to$ wiring \& weights}
-      \;$\cdot$\; \textbf{circuit $\to$ measure $\to$ answer}
+      \textbf{words $\to$ rotation parameters} \;$\cdot$\;
+      \textbf{grammar $\to$ circuit structure \& weights}
+      \;$\cdot$\; \textbf{circuit $\to$ measure $\to$ class label}
     \end{center}
-    Each word owns one \textbf{learned number}. Grammar decides how those numbers are
-    combined. A quantum measurement turns the result into a probability of
-    ``\textbf{\color{poscol}positive}.''
+    Each word is represented by a single trainable rotation angle.
+    Grammar determines how those angles are composed into a circuit.
+    Measuring the output qubit yields $P(|1\rangle)$, interpreted as the
+    probability of \textbf{\color{poscol}positive} sentiment.
   \end{alertblock}
 
-  \begin{block}{Step 1 --- Grammar gives each word a role \emph{and} a weight}
-    Our sentences follow one shape; each word plays a colored \textbf{role}:
+  \begin{block}{Step 1 --- Grammatical roles and learned weights}
+    All sentences share a common syntactic structure; each word is assigned
+    a colored \textbf{grammatical role}:
     \begin{center}\large
       \wordbox{adjcol}{clever}\;\wordbox{nouncol}{program}\;\wordbox{verbcol}{runs}
       \;\wordbox{objcol}{(the puzzle)}
@@ -104,42 +111,48 @@
       {\color{objcol!60!black}\textbf{object}}
     \end{center}
 
-    Grammar says \emph{who connects to whom} --- and \textbf{how much each role counts}.
-    The verb and adjective carry sentiment; the bare nouns barely matter:
+    Grammar determines the circuit topology and assigns role-specific
+    weights to each word's rotation parameter. Verbs and adjectives receive
+    higher weights, reflecting their greater contribution to sentential polarity:
 
     \begin{center}
       \begin{tabular}{lc}
         \toprule
         \textbf{role} & \textbf{weight} \\
         \midrule
-        {\color{verbcol!60!black}verb} (the action)        & \textbf{1.40} \\
-        {\color{adjcol!60!black}adjective} (describes)      & \textbf{1.25} \\
-        object-adjective                                    & 0.90 \\
-        {\color{nouncol!60!black}subject} (the thing)       & 0.45 \\
-        {\color{objcol!60!black}object} (acted on)          & 0.35 \\
+        {\color{verbcol!60!black}verb}        & \textbf{1.40} \\
+        {\color{adjcol!60!black}adjective}    & \textbf{1.25} \\
+        object-adjective                      & 0.90 \\
+        {\color{nouncol!60!black}subject}     & 0.45 \\
+        {\color{objcol!60!black}object}       & 0.35 \\
         \bottomrule
       \end{tabular}
     \end{center}
-    \footnotesize (Object roles only kick in for longer sentences with an object ---
-    ours, ``the clever program runs,'' uses just the top, subject, and verb.)
+    \footnotesize (Object-role weights activate for sentences with an explicit object;
+    our example, ``the clever program runs,'' uses only the top three.)
   \end{block}
 
-  \begin{block}{Step 2 --- A qubit is a dial, and measuring squares it}
-    A \textbf{bit} is a switch: \textbf{0} or \textbf{1}. A \textbf{qubit} is a
-    \textbf{dial} that can point anywhere between \textbf{\color{negcol}NO} (0) and
-    \textbf{\color{poscol}YES} (1). \textbf{What's quantum:} until you look it holds a
-    real \textbf{blend} of both at once.
+  \begin{block}{Step 2 --- Qubit states and measurement}
+    A classical bit takes a definite value in $\{0,1\}$. A \textbf{qubit} is a
+    two-level quantum system whose pure state is a unit vector on the
+    \textbf{Bloch sphere}. Before measurement, the qubit occupies a
+    \textbf{superposition} of computational basis states $|0\rangle$ and $|1\rangle$.
 
     \begin{itemize}
-      \item A dial tilted by angle $\theta$ carries \textbf{amplitude}
-            $\cos(\theta/2)$ on NO and $\sin(\theta/2)$ on YES.
-      \item \textbf{Measuring is random; the rule is: probability $=$ amplitude$^2$.}
-            A dial leaning far to YES has a big YES-amplitude $\Rightarrow$ reads YES
-            almost every time. Straight up $=$ 50/50.
+      \item An $R_y(\theta)$ rotation from $|0\rangle$ yields
+            $|\psi\rangle = \cos(\theta/2)|0\rangle + \sin(\theta/2)|1\rangle$,
+            a point at polar angle $\theta$ from the north pole of the Bloch sphere.
+      \item \textbf{Measurement} in the $\{|0\rangle,|1\rangle\}$ basis projects
+            $|\psi\rangle$ onto one of the basis states. The probability of each
+            outcome equals the \textbf{squared magnitude of the projection}:
+            $P(|1\rangle)=|\langle 1|\psi\rangle|^2=\sin^2(\theta/2)$.
+            The equatorial state ($\theta=\pi/2$) gives $P(|0\rangle)=P(|1\rangle)=\tfrac{1}{2}$.
     \end{itemize}
-    We use \textbf{two} dials: a \textbf{\color{nouncol}subject dial} and a
-    \textbf{\color{verbcol}sentence dial} (it ends up holding the answer). For both
-    dials at once, \textbf{multiply} their amplitudes for each reading.
+    We use a \textbf{2-qubit register}: a \textbf{\color{nouncol}subject qubit} and a
+    \textbf{\color{verbcol}sentence qubit} whose measurement yields the classification.
+    The joint state lives in the tensor product space
+    $\mathcal{H}_{\mathrm{subj}} \otimes \mathcal{H}_{\mathrm{sent}}$;
+    amplitudes of product states multiply.
   \end{block}
 
 \end{column}
@@ -151,10 +164,10 @@
 % =====================================================================
 \begin{column}{\colwidth}
 
-  \begin{block}{Step 3 --- Turning words into rotation angles}
-    Each word's learned number is how far it \textbf{rotates} a dial. Grammar adds the
-    right words onto each wire. For \wordbox{poscol}{the clever program runs}, the
-    \emph{trained} dials are
+  \begin{block}{Step 3 --- Encoding words as rotation angles}
+    Each word is encoded as an $R_y(\theta)$ rotation angle applied to its qubit wire.
+    Grammar composes the relevant angles onto each wire.
+    For \wordbox{poscol}{the clever program runs}, the \emph{trained} parameters are
     \;{\color{adjcol!60!black}\textbf{clever}}$=0.098$,\;
     {\color{nouncol!60!black}\textbf{program}}$=0.043$,\;
     {\color{verbcol!60!black}\textbf{runs}}$=0.489$:
@@ -162,16 +175,17 @@
     \medskip
     \begin{center}\large
     \begin{tabular}{r l}
-      {\color{nouncol!60!black}\textbf{subject angle}}  & $=$ clever $+$ program $= 0.098+0.043 = \mathbf{0.141}$\\[4pt]
-      {\color{verbcol!60!black}\textbf{sentence angle}} & $=$ runs $= \mathbf{0.489}$\\[4pt]
-      \textbf{decision angle} & $=\ \underbrace{\pi/2}_{\text{start straight up}}+\ \underbrace{\text{score}}_{\text{weighted words}}$\\[10pt]
+      {\color{nouncol!60!black}\textbf{subject $\theta$}}  & $=$ clever $+$ program $= 0.098+0.043 = \mathbf{0.141}$\\[4pt]
+      {\color{verbcol!60!black}\textbf{sentence $\theta$}} & $=$ runs $= \mathbf{0.489}$\\[4pt]
+      \textbf{verdict angle} & $=\ \underbrace{\pi/2}_{\text{equatorial init.}}+\ \underbrace{\text{score}}_{\text{weighted sum}}$\\[10pt]
       \multicolumn{2}{r}{$\text{score}=\underbrace{0.068}_{\text{bias}}+1.25(0.098)+0.45(0.043)+1.40(0.489)=0.894$}\\[6pt]
-      \multicolumn{2}{r}{decision angle $=\pi/2+0.894=\mathbf{2.465}$}
+      \multicolumn{2}{r}{verdict angle $=\pi/2+0.894=\mathbf{2.465}$}
     \end{tabular}
     \end{center}
     \smallskip
-    The decision dial starts \textbf{straight up} (the 50/50 line) so the weighted words
-    can push it either way --- and the \textbf{verb} pushes hardest (weight 1.40).
+    The sentence qubit is initialized to the equatorial state ($\theta=\pi/2$),
+    so the weighted score shifts its state vector toward either pole --- the verb
+    dominates (weight 1.40).
 
     \medskip
     \begin{center}
@@ -182,39 +196,39 @@
       \draw[wire, verbcol] (3,-1.6) -- (16.2,-1.6);
       \node[nouncol!60!black, font=\small\bfseries, anchor=east] at (2.8,1.4) {subject};
       \node[verbcol!60!black, font=\small\bfseries, anchor=east] at (2.8,-1.6) {sentence};
-      \node[gate, fill=nouncol!15] at (5.2,1.4)  {tilt\\0.141};
-      \node[gate, fill=verbcol!15] at (5.2,-1.6) {tilt\\0.489};
+      \node[gate, fill=nouncol!15] at (5.2,1.4)  {$R_y$\\0.141};
+      \node[gate, fill=verbcol!15] at (5.2,-1.6) {$R_y$\\0.489};
       \fill[cardinalred] (8.6,1.4) circle (6pt);
       \draw[cardinalred, line width=1.6pt] (8.6,1.4) -- (8.6,-1.6);
       \draw[cardinalred, line width=1.6pt] (8.6,-1.6) circle (10pt);
       \draw[cardinalred, line width=1.6pt] (8.28,-1.6) -- (8.92,-1.6);
-      \node[cardinalred, font=\small\bfseries, align=center] at (8.6,2.5) {CX (link)};
-      \node[gate, fill=coolgray!22] at (11.7,-1.6) {tilt\\2.465};
+      \node[cardinalred, font=\small\bfseries, align=center] at (8.6,2.5) {CX (CNOT)};
+      \node[gate, fill=coolgray!22] at (11.7,-1.6) {$R_y$\\2.465};
       \node[draw, line width=1.3pt, rounded corners=3pt, minimum width=1.9cm, minimum height=1.3cm] (meter) at (14.7,-1.6) {};
       \draw[line width=1pt] ([xshift=-0.55cm,yshift=-0.3cm]meter.center) arc (180:0:0.55);
       \draw[-{Latex[length=3mm]}, line width=1.1pt] ([yshift=-0.3cm]meter.center) -- ++(38:0.65);
       \node[font=\small\bfseries, below=1mm of meter] {measure};
     \end{tikzpicture}
     \end{center}
-    \footnotesize ``\textbf{tilt $\theta$}'' just means \emph{rotate that dial by angle
-    $\theta$} (physicists call it an \emph{Ry} gate). The sentence dial is tilted
-    \textbf{twice}: first by its own word ($0.489$), then by the whole weighted verdict
-    ($2.465$).
+    \footnotesize An $R_y(\theta)$ gate rotates the qubit state vector by angle $\theta$
+    about the $y$-axis of the Bloch sphere. The sentence qubit receives two successive
+    $R_y$ rotations: first by its word parameter ($0.489$), then by the verdict angle ($2.465$).
   \end{block}
 
-  \begin{alertblock}{Step 4 --- The CX gate: grammar's glue (and the quantum part)}
-    Grammar says the \textbf{\color{nouncol}subject} and the \textbf{\color{verbcol}action}
-    are \textbf{one} sentence, so we link their dials with a \textbf{CX gate}. Its rule
-    (\textbf{C}\,=\,control/check, \textbf{X}\,=\,flip):
+  \begin{alertblock}{Step 4 --- Entanglement via the CNOT Gate}
+    Grammar requires the \textbf{\color{nouncol}subject} and
+    \textbf{\color{verbcol}sentence} qubits to be treated as a single composite system.
+    The \textbf{CNOT (CX) gate} encodes this grammatical composition:
+
     \begin{center}\large
-      \textbf{If the \color{nouncol}subject\color{black}\ reads
-      \color{poscol}YES\color{black}, flip the \color{verbcol}sentence\color{black}\ dial;
-      if \color{negcol}NO\color{black}, leave it.}
+      \textbf{If subject $=|1\rangle$: flip sentence qubit.\quad
+      If subject $=|0\rangle$: leave sentence qubit unchanged.}
     \end{center}
 
-    \heading{Literally, on the four readings}
-    The two dials together have four readings (left digit $=$ subject, right $=$ sentence).
-    CX just \textbf{swaps the two where the subject reads 1} ($10\leftrightarrow11$):
+    \heading{Action on the computational basis}
+    The 2-qubit system has four computational basis states (left digit $=$ subject,
+    right $=$ sentence). CNOT \textbf{swaps the two states where the subject is $|1\rangle$}
+    ($|10\rangle\leftrightarrow|11\rangle$):
     \begin{center}\large
       \begin{tabular}{lcccc}
         \toprule
@@ -226,9 +240,10 @@
       \end{tabular}
     \end{center}
 
-    Because each dial is still a \textbf{blend}, this welds their answers together ---
-    like \textbf{two coins glued}: you can't flip one without the other. They are now
-    \textbf{entangled}, and no separate spinning can fake that link.
+    Because each qubit is in a \textbf{superposition}, the CNOT produces an
+    \textbf{entangled} state: the post-gate state cannot be written as a
+    tensor product $|\psi_{\mathrm{subj}}\rangle\otimes|\psi_{\mathrm{sent}}\rangle$
+    of individual qubit states.
   \end{alertblock}
 
 \end{column}
@@ -240,62 +255,65 @@
 % =====================================================================
 \begin{column}{\colwidth}
 
-  \begin{block}{Watch one sentence compute, slot by slot}
-    The two dials together have four possible readings: \textbf{00, 01, 10, 11}
-    (\textbf{left digit $=$ \color{nouncol}subject dial}, \textbf{right digit $=$
-    \color{verbcol}sentence dial}). The circuit tracks one \textbf{amplitude} per reading;
-    each step just reshuffles these four numbers. Read the table as a sentence per row:
+  \begin{block}{Forward Pass: Full State Evolution}
+    The 2-qubit state is tracked as four computational basis amplitudes
+    ($|00\rangle,|01\rangle,|10\rangle,|11\rangle$;
+    \textbf{left digit $=$ \color{nouncol}subject}, \textbf{right $=$
+    \color{verbcol}sentence}). Each gate reshuffles these amplitudes.
 
     \begin{center}\normalsize
       \begin{tabular}{lcccc}
         \toprule
-        \textbf{what we do} & \textbf{00} & \cellcolor{poscol!18}\textbf{01} & \textbf{10} & \cellcolor{poscol!18}\textbf{11}\\
+        \textbf{operation} & \textbf{00} & \cellcolor{poscol!18}\textbf{01} & \textbf{10} & \cellcolor{poscol!18}\textbf{11}\\
         \midrule
-        both dials start at NO              & 1.000 & \cellcolor{poscol!18}0.000 & 0.000 & \cellcolor{poscol!18}0.000\\
-        tilt \emph{each} dial by its own words & 0.968 & \cellcolor{poscol!18}0.241 & 0.068 & \cellcolor{poscol!18}0.017\\
-        \rowcolor{hi!22} CX links them: swap 10 \& 11 & 0.968 & 0.241 & 0.017 & 0.068\\
-        tilt the \color{verbcol}sentence dial\color{black}\ by the verdict & 0.094 & \cellcolor{poscol!18}0.993 & $-0.059$ & \cellcolor{poscol!18}0.039\\
+        initialized to $|00\rangle$                  & 1.000 & \cellcolor{poscol!18}0.000 & 0.000 & \cellcolor{poscol!18}0.000\\
+        apply word-parameter $R_y$ to each qubit     & 0.968 & \cellcolor{poscol!18}0.241 & 0.068 & \cellcolor{poscol!18}0.017\\
+        \rowcolor{hi!22} CNOT: $|10\rangle\!\leftrightarrow\!|11\rangle$ & 0.968 & 0.241 & 0.017 & 0.068\\
+        apply verdict $R_y(2.465)$ to sentence qubit & 0.094 & \cellcolor{poscol!18}0.993 & $-0.059$ & \cellcolor{poscol!18}0.039\\
         \bottomrule
       \end{tabular}
     \end{center}
-    A ``tilt'' is an \textbf{angle}: $0=$ NO, $\pi\,({\approx}3.14)=$ YES, and the
-    halfway $\pi/2\,({\approx}1.57)=$ 50/50. The \textbf{\color{verbcol}sentence dial}'s
-    own word barely tilts it ($0.489$ --- still in NO); the \textbf{verdict} ($2.465$)
-    clears the 50/50 line and lands it in \textbf{\color{poscol}YES}:
+    The $R_y(\theta)$ rotation traces a path along the Bloch sphere: $\theta=0$ leaves
+    the qubit at $|0\rangle$ (north pole), $\theta=\pi$ rotates it to $|1\rangle$
+    (south pole), and $\theta=\pi/2$ yields the equatorial superposition
+    $\tfrac{1}{\sqrt{2}}(|0\rangle+|1\rangle)$. The sentence qubit's word angle
+    ($\theta=0.489$) places its state vector near the north pole; the verdict angle
+    ($\theta=2.465$) rotates it past the equator into the $|1\rangle$ hemisphere:
 
     \begin{center}
     \begin{tikzpicture}[font=\sffamily]
       \def\R{2.35}
-      % colored dial arc: red NO half (left, tilt 0..pi/2), green YES half (right, pi/2..pi)
+      % colored arc: |0> half (left), |1> half (right)
       \draw[line width=12pt, negcol!55] (180:\R) arc (180:90:\R);
       \draw[line width=12pt, poscol!55] (90:\R)  arc (90:0:\R);
-      \node[negcol, font=\footnotesize\bfseries, align=center] at (-3.5,0) {NO\\(tilt 0)};
-      \node[poscol, font=\footnotesize\bfseries, align=center] at (3.55,0)  {YES\\(tilt $\pi$)};
-      \node[coolgray, font=\footnotesize, align=center] at (0,3.35) {50/50\\($\pi/2{\approx}1.57$)};
+      \node[negcol, font=\footnotesize\bfseries, align=center] at (-3.5,0) {$|0\rangle$\\$(\theta=0)$};
+      \node[poscol, font=\footnotesize\bfseries, align=center] at (3.55,0)  {$|1\rangle$\\$(\theta=\pi)$};
+      \node[coolgray, font=\footnotesize, align=center] at (0,3.35) {equatorial\\$(\theta=\pi/2)$};
       \fill (0,0) circle (4pt);
-      % needle for the word's own tilt 0.489 (theta -> gauge angle 180-deg(theta) = 152)
+      % needle for the word's own rotation 0.489
       \draw[-{Latex[length=4mm]}, line width=2.4pt, coolgray!75, dashed] (0,0) -- (152:1.65);
-      \node[coolgray, font=\footnotesize, align=center] at (147:3.5) {its word\\$0.489$};
-      % needle for the verdict 2.465 (gauge angle 180-141 = 39)
+      \node[coolgray, font=\footnotesize, align=center] at (147:3.5) {word\\$\theta=0.489$};
+      % needle for the verdict 2.465
       \draw[-{Latex[length=6.5mm]}, line width=3.6pt, poscol] (0,0) -- (39:2.1);
-      \node[poscol!60!black, font=\footnotesize\bfseries, align=center] at (44:3.55) {verdict\\$2.465$};
-      % rotation arrow showing the big swing from NO side toward YES
+      \node[poscol!60!black, font=\footnotesize\bfseries, align=center] at (44:3.55) {verdict\\$\theta=2.465$};
+      % rotation arrow
       \draw[-{Latex[length=4.5mm]}, line width=1.8pt, cardinalred] (138:1.05) arc (138:52:1.05);
     \end{tikzpicture}
     \end{center}
 
-    \textbf{Now measure the \color{verbcol}sentence dial.} It reads \textbf{\color{poscol}YES}
-    in the readings whose right digit is 1 --- the {\color{poscol}\textbf{green}} columns
-    \textbf{01} and \textbf{11}. Square those amplitudes and add:
+    \textbf{Measuring the sentence qubit} in the $\{|0\rangle,|1\rangle\}$ basis:
+    basis states $|01\rangle$ and $|11\rangle$ (right digit $=1$,
+    {\color{poscol}\textbf{green}} columns) correspond to a positive outcome.
+    The probability of each is the squared magnitude of its amplitude:
     \begin{center}\Large
-      $P(\text{\color{poscol}YES}) = 0.993^2 + 0.039^2 = \mathbf{0.988}
+      $P(|1\rangle) = 0.993^2 + 0.039^2 = \mathbf{0.988}
        \;\Rightarrow\; \textbf{\color{poscol}POSITIVE}\ \checkmark$
     \end{center}
-    Swap in \wordbox{negcol}{the broken code fails} and the same circuit lands at
-    $P(\text{YES})=\textbf{0.003}\Rightarrow$\ \textbf{\color{negcol}NEGATIVE}.
+    The negative counterpart \wordbox{negcol}{the broken code fails} yields
+    $P(|1\rangle)=\textbf{0.003}\Rightarrow$\ \textbf{\color{negcol}NEGATIVE}.
   \end{block}
 
-  \begin{block}{Does it work?}
+  \begin{block}{Classification Results}
     \begin{columns}
       \begin{column}{0.46\colwidth}
         \begin{table}\centering
@@ -303,15 +321,15 @@
             \toprule
              & \textbf{Correct}\\
             \midrule
-            Practice (60) & \textbf{100\%}\\
-            New, unseen (12) & \textbf{100\%}\\
+            Training (60) & \textbf{100\%}\\
+            Test (12)     & \textbf{100\%}\\
             \bottomrule
           \end{tabular}
         \end{table}
-        \footnotesize Every answer comes from \textbf{simulating and measuring} this
-        circuit. With only \textbf{2 qubits} a laptop does it exactly in $<\!1$\,s; real
-        language needs \emph{many} linked qubits --- where a true quantum computer
-        becomes the point.
+        \footnotesize All predictions are obtained by exact statevector simulation.
+        With only \textbf{2 qubits}, simulation is exact and completes in $<\!1$\,s;
+        full-scale QNLP would require many entangled qubits, motivating
+        execution on actual quantum hardware.
       \end{column}
       \begin{column}{0.5\colwidth}
         \centering\includegraphics[width=0.86\linewidth]{assets/loss_curve.png}
@@ -319,17 +337,22 @@
     \end{columns}
   \end{block}
 
-  \begin{alertblock}{The update rule, explicitly}
-    Run the circuit, get $P(\text{YES})$; the \textbf{miss} is $e=P(\text{YES})-\text{label}$.
-    For each dial's angle $\theta$, get its \textbf{slope} by re-running the circuit with
-    that angle shifted $\pm\tfrac{\pi}{2}$, then step the dial against the miss:
+  \begin{alertblock}{Training: the parameter-shift rule}
+    Evaluate the circuit to obtain $P(|1\rangle)$; the error is
+    $e = P(|1\rangle) - y_{\mathrm{label}}$.
+    The gradient of $P(|1\rangle)$ with respect to each rotation angle $\theta$
+    is estimated via the \emph{parameter-shift rule}: re-running the circuit
+    with the angle shifted by $\pm\tfrac{\pi}{2}$ gives the exact gradient,
     \begin{align*}
-      \text{slope} &= \tfrac12\!\left[\,P(\theta{+}\tfrac{\pi}{2}) - P(\theta{-}\tfrac{\pi}{2})\,\right]\\[2pt]
-      \text{dial}  &\leftarrow \text{dial} - \eta\,(\,e \times \text{slope}\,)
+      \frac{\partial P}{\partial\theta} &=
+        \tfrac{1}{2}\!\left[\,P\!\left(\theta{+}\tfrac{\pi}{2}\right)
+        - P\!\left(\theta{-}\tfrac{\pi}{2}\right)\,\right]\\[2pt]
+      \theta &\leftarrow \theta
+        - \eta\!\left(e\cdot\frac{\partial P}{\partial\theta}\right)
     \end{align*}
-    The shift-and-subtract is the \emph{parameter-shift rule} (how real quantum circuits
-    get their gradients); $\eta$ is a small learning rate. Repeat over every sentence for
-    $\sim$50 rounds.
+    This identity holds exactly for gates of the form $e^{-i\theta G/2}$,
+    making it directly executable on quantum hardware. $\eta$ is the learning
+    rate; training proceeds for $\sim\!50$ epochs.
   \end{alertblock}
 
 \end{column}
