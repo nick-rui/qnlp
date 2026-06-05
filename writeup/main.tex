@@ -1,0 +1,453 @@
+% Compile with pdflatex (or tectonic); uses the official ICML 2026 style files.
+
+\documentclass{article}
+
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{booktabs}
+
+\usepackage{hyperref}
+
+% Preprint (non-blind) build.
+\usepackage[preprint]{icml2026}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+
+% Bra-ket notation, defined locally so we don't depend on the braket package.
+\newcommand{\ket}[1]{\left|#1\right\rangle}
+\newcommand{\bra}[1]{\left\langle#1\right|}
+\newcommand{\braket}[1]{\left\langle#1\right\rangle}
+
+\usepackage[capitalize,noabbrev]{cleveref}
+
+\icmltitlerunning{Can a Quantum Circuit Read a Sentence?}
+
+\begin{document}
+
+\twocolumn[
+  \icmltitle{Can a Quantum Circuit Read a Sentence?}
+
+  \icmlsetsymbol{equal}{*}
+
+  \begin{icmlauthorlist}
+    \icmlauthor{Feolu Kolawole}{equal,stan}
+    \icmlauthor{Nick Rui}{equal,stan}
+  \end{icmlauthorlist}
+
+  \icmlaffiliation{stan}{Physics 14N, Stanford University, Stanford, CA, USA}
+
+  \icmlcorrespondingauthor{Feolu Kolawole}{flukol@stanford.edu}
+  \icmlcorrespondingauthor{Nick Rui}{nickrui@stanford.edu}
+
+  \icmlkeywords{Quantum Natural Language Processing, DisCoCat, Variational Quantum Circuits}
+
+  \vskip 0.3in
+]
+
+\printAffiliationsAndNotice{\icmlEqualContribution}
+
+% Force a clean running header (the style suppresses any single \small line
+% taller than 6.25pt, which Computer Modern's cap height exceeds).
+\makeatletter\gdef\@icmltitlerunning{Can a Quantum Circuit Read a Sentence?}\makeatother
+
+\begin{abstract}
+  Quantum natural language processing (QNLP) rests on a mathematical
+  coincidence. Grammar composes the meaning of a sentence in the same way that
+  qubits compose into a larger quantum state. A sentence can therefore be read
+  as a recipe for a quantum circuit, and the circuit's measurement can be read
+  as the sentence's meaning. We study this idea at the smallest scale where
+  every step can be checked by hand. Our model is a sentiment classifier that
+  maps a short sentence to a two-qubit circuit. Grammar decides which word
+  rotates which qubit, an entangling gate ties the subject to the predicate, and
+  one measurement returns positive or negative. Each prediction is the result of
+  simulating the circuit exactly. The parameters are trained with the
+  parameter-shift rule, the analytic-gradient method also used on quantum
+  hardware. On a small balanced dataset the classifier labels every sentence
+  correctly. We trace one example through the full pipeline, from parse to final
+  amplitude. The goal is understanding rather than performance. The paper gives a
+  working demonstration of how syntax can drive a quantum circuit, and a clear
+  account of what two qubits can and cannot show.
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+
+Most natural language processing learns vector representations of words from
+large corpora. Grammar, if it appears at all, is something the model discovers
+on its own. QNLP starts from the other side. In the DisCoCat model of
+\citet{coecke2010mathematical}, short for distributional compositional
+categorical, grammar comes first. A noun is a state. A verb is a process that
+consumes the nouns around it. The grammatical reduction of a sentence specifies
+how to combine those pieces. Read literally, that diagram is a quantum circuit
+\citep{coecke2020foundations}. The analogy is more than a slogan because
+compositional semantics and multi-qubit Hilbert space are both built from tensor
+products. The bookkeeping is the same on both sides.
+
+We wanted to see this work in practice. We built the smallest model that still
+does something useful: a binary sentiment classifier for short sentences such as
+``the clever program runs.'' It uses two qubits, a closed vocabulary, and three
+sentence templates. At this size the circuit can be simulated exactly, trained
+the way a real QNLP circuit would be, and checked line by line.
+
+Two details keep the exercise honest. First, the prediction is read off a
+simulated quantum state through the Born rule, not off a classical sigmoid placed
+next to a circuit diagram. Second, the parameters are trained with the
+parameter-shift rule \citep{mitarai2018quantum,schuld2019evaluating}, the exact
+gradient method required on physical hardware. We are also clear about scale. Two
+qubits can show compositionality at work. They cannot demonstrate a quantum
+advantage. \Cref{sec:limits} states where the hard problems begin.
+
+\section{Background}
+\label{sec:background}
+
+\subsection{Qubits and Measurement}
+
+A classical bit is either $0$ or $1$. A qubit is a unit vector in $\mathbb{C}^2$,
+written in the computational basis as
+\begin{equation}
+  \ket{\psi} = \alpha\ket{0} + \beta\ket{1}, \qquad |\alpha|^2 + |\beta|^2 = 1.
+\end{equation}
+The only single-qubit gate we need is the $R_y$ rotation,
+\begin{equation}
+  R_y(\theta) =
+  \begin{pmatrix} \cos\tfrac{\theta}{2} & -\sin\tfrac{\theta}{2} \\[2pt]
+                  \sin\tfrac{\theta}{2} & \phantom{-}\cos\tfrac{\theta}{2} \end{pmatrix},
+  \label{eq:ry}
+\end{equation}
+which sends $\ket{0}$ to $\cos(\theta/2)\ket{0} + \sin(\theta/2)\ket{1}$. This is
+a point at polar angle $\theta$ below the north pole of the Bloch sphere.
+Measuring in the $\{\ket{0},\ket{1}\}$ basis collapses the state onto one pole.
+The probabilities follow the Born rule,
+\begin{equation}
+  P(\ket{1}) = |\!\braket{1|\psi}\!|^2 = \sin^2(\theta/2),
+  \label{eq:born}
+\end{equation}
+so a state on the equator ($\theta = \pi/2$) is a fair coin. We use only real
+amplitudes and $R_y$ gates. The whole computation then lives on a single great
+circle of the Bloch sphere, which is the right level of machinery for a first
+look at QNLP \citep{nielsen2010quantum}.
+
+\subsection{Two Qubits and Entanglement}
+
+Two qubits live in
+$\mathcal{H}_\mathrm{subj} \otimes \mathcal{H}_\mathrm{sent} \cong \mathbb{C}^4$,
+with basis $\{\ket{00},\ket{01},\ket{10},\ket{11}\}$. The left digit is the
+subject qubit and the right digit the sentence qubit, so amplitude $i$
+corresponds to $i = 2\,(\text{subject}) + (\text{sentence})$. A single-qubit gate
+acts through a Kronecker product, for example $R_y(\theta)\otimes I$ on the
+subject. The controlled-NOT gate, with the subject as control, flips the sentence
+qubit when the subject is $\ket{1}$. It swaps $\ket{10}\leftrightarrow\ket{11}$:
+\begin{equation}
+  \mathrm{CX} =
+  \begin{pmatrix}
+    1&0&0&0\\ 0&1&0&0\\ 0&0&0&1\\ 0&0&1&0
+  \end{pmatrix}.
+  \label{eq:cx}
+\end{equation}
+When both qubits are already in superposition, this gate produces a state that
+does not factor as $\ket{\psi_\mathrm{subj}}\otimes\ket{\psi_\mathrm{sent}}$. The
+two qubits become entangled. This is the behavior we want from grammatical
+composition, where subject and predicate can no longer be read in isolation.
+
+\subsection{Grammar in DisCoCat}
+
+DisCoCat assigns each word a grammatical type built from a noun type $n$ and a
+sentence type $s$ \citep{coecke2010mathematical}. A transitive verb carries type
+$n^r\, s\, n^l$. It expects a noun on each side and returns a sentence. Reducing
+the sentence contracts the matching wires, called cups, and the surviving wire is
+the sentence meaning. Reading the diagram as a quantum process turns nouns into
+states, verbs into multi-linear maps, and cups into Bell-style contractions
+\citep{coecke2020foundations}. Our model keeps the central idea, that grammar
+fixes how meanings combine before any number is computed. It reduces the
+apparatus to two qubits so the whole thing can be simulated and trained exactly.
+
+\section{The Model}
+\label{sec:model}
+
+\subsection{Constrained Grammar}
+
+To remove any ambiguity, we restrict every sentence to one of three templates
+over a fixed vocabulary:
+\begin{center}\small
+\begin{tabular}{ll}
+  \texttt{the ADJ NOUN VERB} & intransitive \\
+  \texttt{the ADJ NOUN VERB the NOUN} & transitive \\
+  \texttt{the ADJ NOUN VERB the ADJ NOUN} & + obj.\ adj.
+\end{tabular}
+\end{center}
+A small parser reads each sentence into its grammatical roles: a subject noun, a
+subject adjective, a verb, and optionally an object noun and its adjective. This
+replaces the CCG and DisCoCat machinery that a library such as lambeq
+\citep{kartsaklis2021lambeq} would provide at scale. We give up coverage for a
+parse we can trust and reproduce. \Cref{fig:grammar} shows one parse.
+
+\subsection{Encoding Words as Angles}
+
+Each content word $w$ carries one trainable number $\phi_w$, initialized near
+zero. Grammar enters twice. First, it decides which qubit a word turns. The
+subject-side words, the adjective and subject noun, sum into the subject qubit's
+rotation. The predicate-side words, the verb and any object or object adjective,
+sum into the sentence qubit's rotation:
+\begin{align}
+  \theta_\mathrm{subj} &= \phi_\mathrm{adj} + \phi_\mathrm{subj}, \\
+  \theta_\mathrm{pred} &= \phi_\mathrm{verb} + \phi_\mathrm{obj\text{-}adj} + \phi_\mathrm{obj}.
+\end{align}
+Absent roles drop out of the sums.
+
+Second, grammar decides how strongly each role contributes. A role-weighted sum
+forms a single sentiment score. Verbs and adjectives carry most of the sentiment
+in this domain, so they receive larger weights than the nouns:
+\begin{equation}
+  s = b + \sum_{(\text{role},\,w)\in\text{roles}} \omega_\mathrm{role}\,\phi_w,
+  \label{eq:score}
+\end{equation}
+where the role weights $\omega$ appear in \cref{tab:weights} and $b$ is a
+trainable bias. The score sets the final rotation, offset by $\pi/2$ so that a
+neutral sentence leaves the sentence qubit on the equator:
+\begin{equation}
+  \theta_\mathrm{dec} = \frac{\pi}{2} + s.
+  \label{eq:decision}
+\end{equation}
+
+\begin{table}[t]
+  \caption{Role weights $\omega_\mathrm{role}$ in the sentiment score of
+  \cref{eq:score}. Verbs and subject adjectives carry the sentiment here and are
+  weighted accordingly. Nouns contribute little. Object weights apply only when
+  the sentence has an object.}
+  \label{tab:weights}
+  \vskip 0.1in
+  \centering
+  \begin{tabular}{lc}
+    \toprule
+    Role & Weight $\omega$ \\
+    \midrule
+    Verb              & 1.40 \\
+    Subject adjective & 1.25 \\
+    Object adjective  & 0.90 \\
+    Subject noun      & 0.45 \\
+    Object noun       & 0.35 \\
+    \bottomrule
+  \end{tabular}
+  \vskip -0.1in
+\end{table}
+
+\subsection{Circuit and Readout}
+
+The circuit (\cref{fig:circuit}) runs four steps. It applies
+$R_y(\theta_\mathrm{subj})$ to the subject qubit and $R_y(\theta_\mathrm{pred})$
+to the sentence qubit to load the words. It applies a CX with the subject as
+control to compose them. It applies $R_y(\theta_\mathrm{dec})$ to the sentence
+qubit for the verdict. It measures the sentence qubit. Starting from $\ket{00}$,
+the state after all four gates is
+\begin{multline}
+  \ket{\Psi} =
+  (I\otimes R_y(\theta_\mathrm{dec}))\,\mathrm{CX} \\
+  \times (R_y(\theta_\mathrm{subj})\otimes R_y(\theta_\mathrm{pred}))\,
+  \ket{00}.
+  \label{eq:forward}
+\end{multline}
+The model's only output is the probability of reading $1$ on the sentence qubit,
+\begin{equation}
+  P(\ket{1}) = |\Psi_{01}|^2 + |\Psi_{11}|^2.
+  \label{eq:readout}
+\end{equation}
+We call $\ket{1}$ positive and $\ket{0}$ negative, and classify by whether
+$P(\ket{1})$ exceeds one half. No separate scoring function runs offstage. The
+circuit we draw and the prediction we make are the same code.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{figures/grammar_diagram.png}
+  \caption{The grammatical parse of an example sentence. These roles, not the
+  order the words happen to arrive in, decide how the angles are wired into the
+  circuit of \cref{fig:circuit}.}
+  \label{fig:grammar}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{figures/toy_circuit.png}
+  \caption{The two-qubit circuit. Word parameters set the opening rotations. The
+  CX gate entangles subject and sentence, which is grammatical composition. A
+  final $R_y(\theta_\mathrm{dec})$ writes in the sentiment verdict before the
+  sentence qubit is measured.}
+  \label{fig:circuit}
+\end{figure}
+
+\subsection{Training}
+\label{sec:training}
+
+We train by minimizing binary cross-entropy between $P(\ket{1})$ and the label.
+The gradients are the interesting part. Each angle enters through a gate of the
+form $e^{-i\theta G/2}$. For such gates the derivative of a measured probability
+is given exactly by the parameter-shift rule
+\citep{mitarai2018quantum,schuld2019evaluating}:
+\begin{equation}
+  \frac{\partial P}{\partial\theta}
+  = \tfrac12\!\left[\,
+      P\!\left(\theta + \tfrac{\pi}{2}\right)
+    - P\!\left(\theta - \tfrac{\pi}{2}\right)
+    \right].
+  \label{eq:psr}
+\end{equation}
+This is not a finite-difference approximation. It is exact for these gates, and
+it is how real QNLP circuits are differentiated on hardware. We evaluate it for
+each of the three gate angles by re-running the simulation at shifted values. The
+chain rule then carries those gradients back to the word parameters and the bias.
+One word may feed several gates, weighted by how often it appears and by its role.
+Gradient descent does the rest, over fifty epochs at a learning rate of $0.35$.
+
+\section{Worked Example}
+\label{sec:walkthrough}
+
+To see the model run, take the positive sentence ``the clever program runs.''
+After training, its words have settled on $\phi_\text{clever}=0.098$,
+$\phi_\text{program}=0.043$, and $\phi_\text{runs}=0.489$, with bias $b=0.068$.
+
+The subject qubit collects the adjective and noun,
+$\theta_\mathrm{subj}=0.098+0.043=0.141$. The sentence qubit collects the verb,
+$\theta_\mathrm{pred}=0.489$. The role-weighted score from \cref{eq:score} is
+\begin{align*}
+  s &= 0.068 + 1.25(0.098) + 0.45(0.043) + 1.40(0.489) \\
+    &= 0.894,
+\end{align*}
+so the verdict rotation is $\theta_\mathrm{dec}=\pi/2 + 0.894 = 2.465$. The verb,
+at weight $1.40$, dominates the score, which is the bias we built in.
+
+Following the four amplitudes of \cref{eq:forward} through the circuit gives
+\cref{tab:evolution}. The opening rotations barely disturb $\ket{00}$. The CX
+swaps the $\ket{10}$ and $\ket{11}$ amplitudes, which is grammatical composition
+in action. The verdict rotation tips the sentence qubit across the equator, from
+the $\ket{0}$ hemisphere into the $\ket{1}$ hemisphere. Reading off
+\cref{eq:readout},
+\begin{equation*}
+  P(\ket{1}) = 0.993^2 + 0.039^2 = 0.988
+  \;\Rightarrow\; \textbf{POSITIVE}.
+\end{equation*}
+The opposite sentence, ``the broken code fails,'' runs through the same circuit
+with its own angles and gives $P(\ket{1}) = 0.003$, a confident negative. Almost
+the entire gap between the two comes from the verb and adjective angles, as the
+role weights intend.
+
+\begin{table}[t]
+  \caption{The statevector for ``the clever program runs'' at each stage of
+  \cref{eq:forward}. The left digit is the subject qubit, the right digit the
+  sentence qubit. The $\ket{01}$ and $\ket{11}$ columns are the ones a positive
+  reading draws on.}
+  \label{tab:evolution}
+  \vskip 0.1in
+  \centering
+  \small
+  \setlength{\tabcolsep}{4pt}
+  \begin{tabular}{lrrrr}
+    \toprule
+    Operation & $\ket{00}$ & $\ket{01}$ & $\ket{10}$ & $\ket{11}$ \\
+    \midrule
+    init $\ket{00}$            & 1.000 & 0.000 & 0.000 & 0.000 \\
+    word $R_y$ (both qubits)   & 0.968 & 0.241 & 0.068 & 0.017 \\
+    CX: $\ket{10}\!\leftrightarrow\!\ket{11}$ & 0.968 & 0.241 & 0.017 & 0.068 \\
+    decision $R_y(2.465)$      & 0.094 & 0.993 & $-0.059$ & 0.039 \\
+    \bottomrule
+  \end{tabular}
+  \vskip -0.1in
+\end{table}
+
+\section{Results}
+\label{sec:experiments}
+
+The dataset has 72 sentences, split evenly into 36 positive and 36 negative, with
+60 for training and 12 for testing. Positive and negative sentences use identical
+templates and differ only in their content words, such as \emph{clever} or
+\emph{reliable} against \emph{broken} or \emph{buggy}. This sharpens the
+question. With grammar fixing the wiring, can the learned word angles alone carry
+the meaning? The splits, the parser, and the random seed are all deterministic,
+so the run reproduces from a single command.
+
+It can. The model labels every training and test sentence correctly
+(\cref{tab:results}). The cross-entropy falls smoothly across the fifty epochs of
+training (\cref{fig:loss}). Every prediction comes from exact statevector
+simulation of the two qubits. At this size a forward pass and its gradients
+finish in well under a second on a laptop.
+
+Perfect accuracy here is not a strong claim. The dataset is small, grammatically
+uniform, and separable in the feature the model was built around. A classical
+linear classifier would also solve it. The experiment checks something narrower.
+It checks that the quantum realization holds together. Rotations, entanglement, a
+Born-rule readout, and parameter-shift training reproduce the correct meaning
+from end to end, with grammar rather than word order doing the composing. The
+result is a working mechanism, not a benchmark.
+
+\begin{table}[t]
+  \caption{Accuracy. Every prediction is the outcome of simulating and measuring
+  the two-qubit circuit (\cref{eq:readout}).}
+  \label{tab:results}
+  \vskip 0.1in
+  \centering
+  \begin{tabular}{lcc}
+    \toprule
+    Split & \# Sentences & Accuracy \\
+    \midrule
+    Train & 60 & 100\% \\
+    Test  & 12 & 100\% \\
+    \bottomrule
+  \end{tabular}
+  \vskip -0.1in
+\end{table}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{figures/loss_curve.png}
+  \caption{Binary cross-entropy over training. The gradients behind this curve
+  come from the parameter-shift rule of \cref{eq:psr}, the same method used on a
+  real quantum device.}
+  \label{fig:loss}
+\end{figure}
+
+\section{Limitations}
+\label{sec:limits}
+
+The ceiling is worth stating plainly. Two qubits and a fixed grammar cannot
+demonstrate a quantum advantage, and we do not claim one. Simulating a circuit
+this small is trivial on a classical computer. The value is the demonstration
+itself. A sentence's grammar can be compiled into a circuit whose measurement
+encodes meaning, with no hidden steps.
+
+Real QNLP changes the picture in ways this model does not capture. The
+hand-written parser becomes a full DisCoCat or CCG pipeline
+\citep{kartsaklis2021lambeq}. Words spread across several qubits each. The
+circuits run on noisy devices where probabilities are sampled rather than
+computed, so the analytic gradients of \cref{eq:psr} become a necessity rather
+than a convenience \citep{lorenz2023qnlp}. New difficulties appear that do not
+exist at two qubits. The sharpest is the barren plateau, where training gradients
+shrink exponentially as qubits are added \citep{mcclean2018barren}. This is a
+central obstacle for variational quantum models in general
+\citep{cerezo2021variational}.
+
+The modeling shortcuts also have a cost. Real amplitudes, one rotation per word,
+a fixed table of role weights, and a closed vocabulary each trade expressivity
+for clarity. Richer QNLP encodes words as multi-qubit states and verbs as genuine
+multi-linear maps, so that composition is more than a single scalar score.
+Extending the model in that direction, without losing the transparency that makes
+it useful, is the natural next step.
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+We built a two-qubit sentiment classifier in which grammar lays out the circuit,
+learned word angles supply the meaning, and one measurement gives the verdict.
+Training uses the parameter-shift rule throughout. On a small balanced dataset
+the model is perfectly accurate. We traced a single sentence through every stage,
+from parse and angles to the entangling gate, the amplitudes, and the readout.
+The model is small by design. It offers a clear picture of how syntax can drive a
+quantum circuit, and a clear sense of how much further there is to go.
+
+The dataset, parser, simulator, trainer, and figures are released with the
+project, and the full pipeline runs deterministically from one command.
+
+\bibliography{references}
+\bibliographystyle{icml2026}
+
+\end{document}
