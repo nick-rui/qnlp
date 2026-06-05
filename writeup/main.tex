@@ -23,6 +23,18 @@
 
 \usepackage[capitalize,noabbrev]{cleveref}
 
+% --- Vector figures (grammar parse and circuit) ---
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc,decorations.pathreplacing,fit}
+\definecolor{adjcol}{RGB}{168,101,12}   % adjective
+\definecolor{nouncol}{RGB}{0,118,168}   % subject noun
+\definecolor{verbcol}{RGB}{0,140,107}   % verb
+\definecolor{objcol}{RGB}{120,60,115}   % object
+% A colored, rounded word box used in the grammar figure.
+\newcommand{\rolebox}[2]{%
+  \tikz[baseline=(b.base)]{\node[rounded corners=2pt, draw=#1, line width=1pt,
+    fill=#1!8, text=#1!55!black, inner sep=4pt, font=\bfseries\small] (b) {#2};}}
+
 \icmltitlerunning{Can a Quantum Circuit Read a Sentence?}
 
 \begin{document}
@@ -260,20 +272,81 @@ circuit we draw and the prediction we make are the same code.
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=\columnwidth]{figures/grammar_diagram.png}
-  \caption{The grammatical parse of an example sentence. These roles, not the
-  order the words happen to arrive in, decide how the angles are wired into the
-  circuit of \cref{fig:circuit}.}
+  \resizebox{\columnwidth}{!}{%
+  \begin{tikzpicture}[
+      font=\small,
+      box/.style={rounded corners=2pt, draw, line width=1pt, inner sep=5pt,
+                  font=\bfseries},
+      rel/.style={-{Latex[length=2mm]}, line width=0.9pt, black!55},
+      brace/.style={decorate, decoration={brace, mirror, amplitude=5pt},
+                    line width=0.9pt}]
+    % word boxes
+    \node[box, draw=adjcol,  text=adjcol!55!black,  fill=adjcol!8]                 (adj)  {clever};
+    \node[box, draw=nouncol, text=nouncol!55!black, fill=nouncol!8, right=1.4cm of adj]  (noun) {program};
+    \node[box, draw=verbcol, text=verbcol!55!black, fill=verbcol!8, right=1.4cm of noun] (verb) {runs};
+    % role labels
+    \node[below=2pt of adj,  font=\scriptsize\itshape, adjcol!55!black]  {adjective};
+    \node[below=2pt of noun, font=\scriptsize\itshape, nouncol!55!black] {subject};
+    \node[below=2pt of verb, font=\scriptsize\itshape, verbcol!55!black] {verb};
+    % grammatical relations (arcs above)
+    \draw[rel] (adj)  to[bend left=38] node[above, font=\scriptsize]{modifies}   (noun);
+    \draw[rel] (noun) to[bend left=38] node[above, font=\scriptsize]{subject of} (verb);
+    % braces grouping the words by which qubit they rotate
+    \draw[brace, nouncol] ([yshift=-1.05cm]adj.west) -- ([yshift=-1.05cm]noun.east)
+        node[midway, below=5pt, nouncol!55!black, font=\scriptsize\bfseries, align=center]
+        {subject qubit\\$R_y(\theta_\mathrm{subj})$};
+    \draw[brace, verbcol] ([yshift=-1.05cm]verb.west) -- ([yshift=-1.05cm]verb.east)
+        node[midway, below=5pt, verbcol!55!black, font=\scriptsize\bfseries, align=center]
+        {sentence qubit\\$R_y(\theta_\mathrm{pred})$};
+  \end{tikzpicture}}
+  \caption{The grammatical parse of an example sentence. Roles, not word order,
+  decide which qubit each word rotates: the \textcolor{nouncol!55!black}{subject}
+  side (adjective $+$ noun) feeds the subject qubit, the
+  \textcolor{verbcol!55!black}{predicate} side (verb, and any object) feeds the
+  sentence qubit. These assignments wire the angles into the circuit of
+  \cref{fig:circuit}.}
   \label{fig:grammar}
 \end{figure}
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=\columnwidth]{figures/toy_circuit.png}
-  \caption{The two-qubit circuit. Word parameters set the opening rotations. The
-  CX gate entangles subject and sentence, which is grammatical composition. A
-  final $R_y(\theta_\mathrm{dec})$ writes in the sentiment verdict before the
-  sentence qubit is measured.}
+  \resizebox{\columnwidth}{!}{%
+  \begin{tikzpicture}[
+      font=\small,
+      gate/.style={draw, line width=1pt, fill=white, rounded corners=1pt,
+                   minimum height=8mm, inner xsep=4pt},
+      wire/.style={line width=0.9pt}]
+    % wires
+    \draw[wire] (0,1.6) -- (9.4,1.6);
+    \draw[wire] (0,0)   -- (9.4,0);
+    \node[left] at (0,1.6) {$\ket{0}_\mathrm{subj}$};
+    \node[left] at (0,0)   {$\ket{0}_\mathrm{sent}$};
+    % opening rotations (load the words)
+    \node[gate, draw=nouncol] at (2.1,1.6) {$R_y(\theta_\mathrm{subj})$};
+    \node[gate, draw=verbcol] at (2.1,0)   {$R_y(\theta_\mathrm{pred})$};
+    % CX: control on subject, target on sentence
+    \fill (4.3,1.6) circle (3pt);
+    \draw[wire] (4.3,1.6) -- (4.3,0);
+    \draw[wire] (4.3,0) circle (3.2mm);
+    \draw[wire] (4.3,-0.32) -- (4.3,0.32);
+    % decision rotation (the verdict)
+    \node[gate, draw=verbcol] at (6.5,0) {$R_y(\theta_\mathrm{dec})$};
+    % measurement meter
+    \node[gate, minimum width=9mm] (m) at (8.5,0) {};
+    \draw (8.25,-0.13) arc (180:0:2.5mm);
+    \draw[-{Latex[length=1.6mm]}] (8.5,-0.13) -- ++(60:5mm);
+    % phase labels under the timeline
+    \node[font=\scriptsize, black!60] at (2.1,-1.05) {load words};
+    \node[font=\scriptsize, black!60] at (4.3,-1.05) {entangle (CX)};
+    \node[font=\scriptsize, black!60] at (6.5,-1.05) {verdict};
+    \node[font=\scriptsize, black!60] at (8.5,-1.05) {measure};
+  \end{tikzpicture}}
+  \caption{The two-qubit circuit, read left to right. Word parameters set the
+  opening rotations $R_y(\theta_\mathrm{subj})$ and $R_y(\theta_\mathrm{pred})$.
+  The CX gate (control $\bullet$ on the subject, target $\oplus$ on the sentence)
+  entangles the two qubits, which is grammatical composition. The final
+  decision rotation $R_y(\theta_\mathrm{dec})$ writes in the sentiment verdict
+  before the sentence qubit is measured.}
   \label{fig:circuit}
 \end{figure}
 
